@@ -1,10 +1,8 @@
-const express = require('express');
-const router = express.Router();
-const { getEvents } = require('../controllers/eventController');
+import express from 'express';
+import { getEvents } from '../controllers/eventController.js';
 
-// Listado paginado y filtrado de eventos
+const router = express.Router();
+
 router.get('/', getEvents);
 
-module.exports = router;
-
-export default router
+export default router;
