@@ -1,6 +1,6 @@
 import pool from '../models/db.js';
 import jwt from 'jsonwebtoken';
-
+import dayjs from 'dayjs';
 // Helper para obtener el ID del usuario autenticado desde el JWT
 function getUserIdFromToken(req) {
   const authHeader = req.headers['authorization'];
@@ -345,4 +345,89 @@ export const deleteEvent = async (req, res) => {
     console.error(err);
     res.status(500).json({ success: false, message: 'Error al eliminar el evento' });
   }
+};
+
+export const enrollToEvent = async (req, res) => {
+  const eventId = Number(req.params.id);
+  const userId = req.user.id;
+
+  // 1. ¿Existe el evento?
+  const eventResult = await pool.query('SELECT * FROM events WHERE id = $1', [eventId]);
+  if (eventResult.rows.length === 0) {
+    return res.status(404).json({ message: 'Evento no encontrado' });
+  }
+  const event = eventResult.rows[0];
+
+  // 2. Evento habilitado para inscripción
+  if (!event.enabled_for_enrollment) {
+    return res.status(400).json({ message: 'El evento no está habilitado para inscripción.' });
+  }
+
+  // 3. Fecha del evento: no debe ser hoy ni pasada
+  const now = dayjs();
+  const startDate = dayjs(event.start_date);
+  if (!startDate.isAfter(now, 'day')) {
+    return res.status(400).json({ message: 'No se puede registrar a eventos que ya sucedieron o que son hoy.' });
+  }
+
+  // 4. Capacidad máxima
+  const countResult = await pool.query(
+    'SELECT COUNT(*) FROM event_enrollments WHERE id_event = $1',
+    [eventId]
+  );
+  if (Number(countResult.rows[0].count) >= event.max_assistance) {
+    return res.status(400).json({ message: 'Capacidad máxima alcanzada.' });
+  }
+
+  // 5. ¿Ya está inscripto?
+  const existsResult = await pool.query(
+    'SELECT 1 FROM event_enrollments WHERE id_event = $1 AND id_user = $2',
+    [eventId, userId]
+  );
+  if (existsResult.rows.length > 0) {
+    return res.status(400).json({ message: 'Ya estás inscripto en este evento.' });
+  }
+
+  // 6. Registrar inscripción
+  await pool.query(
+    'INSERT INTO event_enrollments (id_event, id_user, registration_date_time) VALUES ($1, $2, NOW())',
+    [eventId, userId]
+  );
+  return res.status(201).json({ message: 'Inscripción exitosa' });
+};
+
+// Baja de inscripción
+export const unenrollFromEvent = async (req, res) => {
+  const eventId = Number(req.params.id);
+  const userId = req.user.id;
+
+  // 1. ¿Existe el evento?
+  const eventResult = await pool.query('SELECT * FROM events WHERE id = $1', [eventId]);
+  if (eventResult.rows.length === 0) {
+    return res.status(404).json({ message: 'Evento no encontrado' });
+  }
+  const event = eventResult.rows[0];
+
+  // 2. Fecha del evento: no debe ser hoy ni pasada
+  const now = dayjs();
+  const startDate = dayjs(event.start_date);
+  if (!startDate.isAfter(now, 'day')) {
+    return res.status(400).json({ message: 'No se puede eliminar inscripción de eventos que ya sucedieron o que son hoy.' });
+  }
+
+  // 3. ¿Está inscripto?
+  const existsResult = await pool.query(
+    'SELECT 1 FROM event_enrollments WHERE id_event = $1 AND id_user = $2',
+    [eventId, userId]
+  );
+  if (existsResult.rows.length === 0) {
+    return res.status(400).json({ message: 'No estás inscripto en este evento.' });
+  }
+
+  // 4. Eliminar inscripción
+  await pool.query(
+    'DELETE FROM event_enrollments WHERE id_event = $1 AND id_user = $2',
+    [eventId, userId]
+  );
+  return res.status(200).json({ message: 'Inscripción eliminada' });
 };
