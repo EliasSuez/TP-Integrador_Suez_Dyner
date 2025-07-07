@@ -1,11 +1,12 @@
 import pkg from 'pg';
+import dotenv from 'dotenv';
+dotenv.config();
 const { Pool } = pkg;
+console.log('DATABASE_URL en db.js:', process.env.DATABASE_URL);
 
-// Lee la URL completa de la base de datos del .env
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  // Si tu proveedor exige SSL, descomenta esto:
-  // ssl: { rejectUnauthorized: false }
+  ssl: { rejectUnauthorized: false }
 });
 
 export default pool;
