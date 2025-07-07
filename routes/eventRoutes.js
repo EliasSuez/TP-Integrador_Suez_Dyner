@@ -6,3 +6,5 @@ const { getEvents } = require('../controllers/eventController');
 router.get('/', getEvents);
 
 module.exports = router;
+
+export default router
