@@ -6,6 +6,31 @@ export const getEvents = async (req, res) => {
   const limit = parseInt(req.query.limit) || 10;
   const offset = (page - 1) * limit;
 
+  const { name, startdate, tag } = req.query;
+  let filters = [];
+  let params = [limit, offset];
+  let paramIndex = params.length;
+  
+  // Filtros dinámicos según query params
+  if (name) {
+    paramIndex++;
+    filters.push(`LOWER(e.name) LIKE LOWER($${paramIndex})`);
+    params.push(`%${name}%`);
+  }
+  if (startdate) {
+    paramIndex++;
+    filters.push(`e.start_date = $${paramIndex}`);
+    params.push(startdate);
+  }
+  if (tag) {
+    paramIndex++;
+    // Si la columna e.tags es un arreglo de texto en PostgreSQL
+    filters.push(`$${paramIndex} = ANY(e.tags)`);
+    params.push(tag);
+  }
+
+  let where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+
   try {
     const result = await pool.query(
       `SELECT
@@ -32,11 +57,12 @@ export const getEvents = async (req, res) => {
             'longitude', el.longitude
           ) AS location
       FROM events e
-      JOIN users u ON e.id_creator_user = u.id
-      JOIN event_locations el ON e.id_event_location = el.id
+      LEFT JOIN users u ON e.id_creator_user = u.id
+      LEFT JOIN event_locations el ON e.id_event_location = el.id
+      ${where}
       ORDER BY e.start_date DESC
       LIMIT $1 OFFSET $2`,
-      [limit, offset]
+      params
     );
 
     res.json({
