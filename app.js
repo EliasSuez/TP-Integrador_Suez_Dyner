@@ -1,12 +1,16 @@
 import dotenv from 'dotenv';
 dotenv.config();
-import eventLocationRoutes from './routes/eventLocationRoutes.js';
 
 import express from 'express';
+import cors from 'cors'; // <--- AGREGA ESTA LÍNEA
+
+import eventLocationRoutes from './routes/eventLocationRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import eventRoutes from './routes/eventRoutes.js';
 
 const app = express();
+
+app.use(cors()); // <--- AGREGA ESTA LÍNEA
 
 // Middleware para parsear JSON
 app.use(express.json());
@@ -15,6 +19,7 @@ app.use(express.json());
 app.use('/api/event', eventRoutes);
 app.use('/api/user', authRoutes);
 app.use('/api/event-location', eventLocationRoutes);
+
 // Ruta raíz opcional (puedes quitarla si no la usas)
 app.get('/', (req, res) => {
   res.json({ message: 'API funcionando correctamente' });
