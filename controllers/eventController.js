@@ -133,6 +133,12 @@ export const getEvents = async (req, res) => {
 // GET /api/event/:id
 export const getEventDetail = async (req, res) => {
   const { id } = req.params;
+
+  // Validación: si no es un número, rechaza la petición
+  if (isNaN(Number(id))) {
+    return res.status(400).json({ error: 'El ID debe ser numérico' });
+  }
+
   try {
     const eventQuery = `
       SELECT
